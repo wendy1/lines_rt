@@ -89,6 +89,7 @@ class MbtaRealTime:
             self.prt('No [RT] data for %s' % (linename))
         else:
             # print trip data for each direction
+            self.prt(' ')
             for dir in rt_data["direction"]:
                 self.prt('-- [RT] %s %s --' % (rt_data['route_name'], dir['direction_name']))
 
@@ -96,7 +97,11 @@ class MbtaRealTime:
                     stop1 = self.get_stop_of_interest(trip)
                     if stop1:
                         pre_dt = stop1['pre_dt']
-                        self.prt('- %s, vehicle %s, predicted time at %s: %s' % (trip['trip_name'], trip['vehicle']['vehicle_id'], stop1['stop_name'], todate(pre_dt)))
+                        vehicle_id = "?"
+                        if 'vehicle' in trip:
+                            vehicle_id = trip['vehicle']['vehicle_id']
+
+                        self.prt('- %s, vehicle %s, predicted time at %s: %s' % (trip['trip_name'], vehicle_id, stop1['stop_name'], todate(pre_dt)))
                     else:
                         self.prt('- %s, vehicle %s' % (trip['trip_name'], trip['vehicle']['vehicle_id']))
 
@@ -114,16 +119,19 @@ if __name__ == '__main__':
     for arg_entry in enumerate(sys.argv):
         arg_num = arg_entry[0]
         arg = arg_entry[1]
-        if arg_num == 0:        # This script
-            pass
-        elif arg == '--printout':
-            print MbtaRealTime().trip_printout()
-            exit()
+        # if arg_num == 0:        # This script
+        #     pass
+        # elif arg == '--printout':
+        #     print MbtaRealTime().trip_printout()
+        #     exit()
 
-    import androidhelper
-    droid = androidhelper.Android()
+    try:
+        import androidhelper
+        droid = androidhelper.Android()
 
-    while True:
-        response = droid.dialogGetInput("Next Trips", MbtaRealTime().trip_printout())
-        if response.result is None:
-            break
+        while True:
+            response = droid.dialogGetInput("Next Trips", MbtaRealTime().trip_printout())
+            if response.result is None:
+                break
+    except:
+        print MbtaRealTime().trip_printout()
