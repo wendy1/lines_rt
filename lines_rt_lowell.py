@@ -122,19 +122,15 @@ class MbtaRealTime:
         return self.printlines
 
 if __name__ == '__main__':
-    for arg_entry in enumerate(sys.argv):
-        arg_num = arg_entry[0]
-        arg = arg_entry[1]
-        if arg_num == 0:        # This script
-            pass
-        elif arg == '--printout':
-            print MbtaRealTime().trip_printout()
-            exit()
 
-    import androidhelper
-    droid = androidhelper.Android()
+    try:
+        import androidhelper
+        droid = androidhelper.Android()
 
-    while True:
-        response = droid.dialogGetInput("Next Trips", MbtaRealTime().trip_printout())
-        if response.result is None:
-            break
+        while True:
+            response = droid.dialogGetInput("Next Trips", MbtaRealTime().trip_printout())
+            if response.result is None:
+                break
+    except:
+        print MbtaRealTime().trip_printout()
+
