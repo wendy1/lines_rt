@@ -2,20 +2,24 @@ import sys
 
 __author__ = 'wswanbeck'
 import json
+import urllib
 import urllib2
 import datetime
+import re
 
 def todate(datestring):
     return datetime.datetime.fromtimestamp(int(datestring))
 
 api_key = 'jfhKC8TLdkWIsOs-DVEUGg'
 
-rt_feeds = dict()
+rt_predictions_by_routes = dict()
 rt_feed_base_url = 'http://realtime.mbta.com/developer/api/v2/predictionsbyroute?api_key=%s&route=%s&format=json'
-rt_feeds['Lowell'] = rt_feed_base_url % (api_key, 'CR-Lowell')
-rt_feeds['Fitchburg/South Acton'] = rt_feed_base_url % (api_key, 'CR-Fitchburg')
-rt_feeds['Newburyport/Rockport'] = rt_feed_base_url % (api_key, 'CR-Newburyport')
-rt_feeds['Haverhill'] = rt_feed_base_url % (api_key, 'CR-Haverhill')
+rt_predictions_by_routes['Lowell'] = rt_feed_base_url % (api_key, 'CR-Lowell')
+rt_predictions_by_routes['Fitchburg/South Acton'] = rt_feed_base_url % (api_key, 'CR-Fitchburg')
+rt_predictions_by_routes['Newburyport/Rockport'] = rt_feed_base_url % (api_key, 'CR-Newburyport')
+rt_predictions_by_routes['Haverhill'] = rt_feed_base_url % (api_key, 'CR-Haverhill')
+
+rt_predictions_by_stop_north_station = 'http://realtime.mbta.com/developer/api/v2/predictionsbystop?api_key=%s&format=json&stop=%s' % (api_key, '''North%20Station''')
 
 deprected_feeds = dict()
 deprected_feeds['Lowell'] = 'http://developer.mbta.com/lib/RTCR/RailLine_10.json'
@@ -83,7 +87,7 @@ class MbtaRealTime:
 
         # get real time data
         try:
-            rt_info = urllib2.urlopen(rt_feeds[linename])
+            rt_info = urllib2.urlopen(rt_predictions_by_routes[linename])
             rt_data = json.load(rt_info)
         except:
             self.prt('No [RT] data for %s' % (linename))
@@ -113,17 +117,49 @@ class MbtaRealTime:
             if len(rt_data) > 0:
                 self.prt (' ')
 
+        # get predictions for outbound north station routes
+        self.printout_predictions_north_station_outbound()
+
         return self.printlines
 
+    def printout_predictions_north_station_outbound(self):
+        # get predictions for north station
+        try:
+            pred_out_json = urllib2.urlopen(rt_predictions_by_stop_north_station)
+            pred_out = json.load(pred_out_json)
+        except Exception as ex:
+            self.prt("--- Can't get North Station outbound prediction data")
+        else:
+            self.prt('--- North Station outbound predictions')
+            routes = pred_out['mode'][0]['route']
+
+            for route in routes:
+                for direction in route['direction']:
+                    if direction['direction_id'] != '0': # 0 is outbound - that's all we care about here
+                        continue
+                    for trip in direction['trip']:
+
+                        # get trip name out of trip_id (e.g. get Haverhill out of "CR-Haverhill-CR-Weekday-Haverhill-May15-223"
+                        m = re.match(r'CR-([^-]+)\-', trip['trip_id'], re.M|re.I)
+                        destname = m.group(1)
+
+                        # get trip number and departure time out of trip_name (e.g. get '223' and '8:40' out of "223 (8:40 pm from North Station)"
+                        m = re.match(r'(\d+) \((\d+:\d+)', trip['trip_name'], re.M|re.I)
+                        trip_number = m.group(1)
+                        departure_time = m.group(2)
+
+                        self.prt('%s-%s (%s)' % (destname, trip_number, departure_time))
+                        vehicle = '?'
+                        if 'vehicle' in trip:
+                            vehicle = trip['vehicle']['vehicle_id']
+
+                        arriving_in = ''
+                        if 'pre_away' in trip:
+                            arriving_in = 'arriving at NS in %s seconds' % trip['pre_away']
+
+                        self.prt('  #%s %s'% (vehicle, arriving_in))
+
 if __name__ == '__main__':
-    for arg_entry in enumerate(sys.argv):
-        arg_num = arg_entry[0]
-        arg = arg_entry[1]
-        # if arg_num == 0:        # This script
-        #     pass
-        # elif arg == '--printout':
-        #     print MbtaRealTime().trip_printout()
-        #     exit()
 
     try:
         import androidhelper
